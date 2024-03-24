@@ -20,7 +20,7 @@ impl Puzzle {
     }
 
 	pub async fn load_texture(&mut self, path: &str) {
-        let puzzle_image = load_image("img/02.png").await.expect("Image not found"); 
+        let puzzle_image = load_image(path).await.expect("Image not found"); 
 		// Take slices of texture image
         let sub_images = self.tiles.into_iter().map(|n| Texture2D::from_image(&puzzle_image.sub_image(Rect {x: (n % 3) as f32 * self.tile_size, y: self.tile_size * (n / 3) as f32, w: self.tile_size, h: self.tile_size} )))
 			.collect::<Vec<Texture2D>>();
@@ -57,6 +57,23 @@ async fn main() {
 
     let mut puzzle = Puzzle::new();
 	//puzzle.load_texture("").await;
+	let mut images: Vec<String> = Vec::new();
+	if let Ok(entries) = fs::read_dir("img/") {
+		for entry in entries {
+			if let Ok(entry) = entry {
+				println!("{:?} -> {:?}", entry, entry.path().extension());
+				let filename = entry.file_name();
+				if entry.path().extension().and_then(std::ffi::OsStr::to_str) == Some("png") {
+					if let Some(path_str) = filename.to_str() {
+						images.push(path_str.to_string());
+					}
+				}
+			}
+		}
+	}
+	for image in images {
+		println!("{}", image);
+	}
     println!("{:?}", puzzle.tiles);
     loop {
         clear_background(GRAY);
