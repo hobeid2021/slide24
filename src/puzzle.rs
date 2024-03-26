@@ -1,6 +1,8 @@
 use std::ffi::OsStr;
 use std::fs;
 use macroquad::prelude::*;
+use futures::future::join_all;
+
 
 #[derive(Debug)]
 pub struct Puzzle {
@@ -11,9 +13,9 @@ pub struct Puzzle {
     // TODO: Implement image textures as parts
     textures: Option<Vec<Texture2D>>,
     draw_image_mode: bool,
-    images: Option<Vec<Image>>,
-    image_count: usize,
-    image_selection: usize,
+    images: Vec<Image>,
+    image_count: i32,
+    image_selection: i32,
 }
 
 impl Puzzle {
@@ -21,48 +23,41 @@ impl Puzzle {
     pub async fn new(img_path: &str) -> Self {
         let tiles: [i32; 9] = (0..9).collect::<Vec<i32>>().try_into().unwrap();
         let dimension = Vec2::new(600.0, 600.0);
-        let mut images: Vec<Image> = Vec::new(); 
+        let mut image_names: Vec<String> = Vec::new();
         let mut image_count = 0;
         if let Ok(entries) = fs::read_dir(img_path) {
             for entry in entries {
                 if let Ok(entry) = entry {
                     if entry.path().extension().and_then(OsStr::to_str) == Some("png") {
-                        images.push(load_image(entry.path().into_os_string().into_string().expect("invalid filename").as_str()).await.expect("Failure to load image"));
+                        image_names.push(entry.path().into_os_string().into_string().expect("invalid filename"));
                         image_count += 1;
                     }
                 }
             }
         }
-
+        image_names.sort();
+        let images: Vec<Image> = join_all(image_names.iter().map(|path| async { load_image(path.as_str()).await.expect("Failure to load image") } )).await;
         Self {
-            position: Vec2::new(50.,50.), 
+            position: Vec2::new(100., 100.), 
             dimension, 
             tile_size: dimension.x / 3.0, 
             tiles, 
             textures: None, 
             draw_image_mode: true, 
-            images: Some(images), 
+            images, 
             image_count,
             image_selection: 0
         }
 
     }
 
-    pub fn init_texture(&mut self) {
-        // If textures are present init them
-        if let Some(_images) = self.images.as_ref() {
-            self.load_texture();
-        }
-    }
 
     pub fn load_texture(&mut self) {
-        if let Some(images) = self.images.as_ref() {
-            let puzzle_image = &images[self.image_selection]; 
-            // Take slices of texture image
-            let sub_images = self.tiles.into_iter().map(|n| Texture2D::from_image(&puzzle_image.sub_image(Rect {x: (n % 3) as f32 * self.tile_size, y: self.tile_size * (n / 3) as f32, w: self.tile_size, h: self.tile_size} )))
-                .collect::<Vec<Texture2D>>();
-            self.textures = Some(sub_images);
-        }
+        let puzzle_image = &self.images[self.image_selection as usize]; 
+        // Take slices of texture image
+        let sub_images = self.tiles.into_iter().map(|n| Texture2D::from_image(&puzzle_image.sub_image(Rect {x: (n % 3) as f32 * self.tile_size, y: self.tile_size * (n / 3) as f32, w: self.tile_size, h: self.tile_size} )))
+            .collect::<Vec<Texture2D>>();
+        self.textures = Some(sub_images);
     }
 
     fn draw_numbered_tile(&self, tile: i32, x_pos: f32, y_pos: f32) {
@@ -76,6 +71,7 @@ impl Puzzle {
     }
 
     pub fn draw(&self) {
+        draw_text(self.image_selection.to_string().as_str(), 10.0, 30.0, 30.0, WHITE);
         //draw_texture_ex(&self.texture, self.position.x, self.position.y, WHITE, DrawTextureParams {dest_size: Some(self.dimension), source: None, rotation: 0., flip_x: false, flip_y: false, pivot: None});
         //draw_rectangle_lines(49.5, 49.25, 500.5, 500.5, 5.0, BLACK);
         for tile in self.tiles {
@@ -95,15 +91,30 @@ impl Puzzle {
     }
 
     pub fn update(&mut self) {
+        match self.textures {
+            None => {
+                println!("Loaded texture!");
+                self.load_texture()
+            }
+            _ => {},
+        }
 
         if is_key_pressed(KeyCode::Right) {
-            if let Some(images) = self.images.as_ref() {
-                self.image_selection += 1;
-                if self.image_selection >= self.image_count {
-                    self.image_selection = 0;
-                }
-                self.load_texture();
+            self.image_selection += 1;
+            if self.image_selection >= self.image_count {
+                self.image_selection = 0;
             }
+            println!("Changed image!");
+            self.load_texture();
+        }
+
+        if is_key_pressed(KeyCode::Left) {
+            self.image_selection -= 1;
+            if self.image_selection < 0 {
+                self.image_selection = self.image_count - 1;
+            }
+            println!("Changed image!");
+            self.load_texture();
         }
 
         if is_key_pressed(KeyCode::Space) {

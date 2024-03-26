@@ -7,7 +7,7 @@ pub mod puzzle;
 
 #[macroquad::main("BasicShapes")]
 async fn main() {
-    request_new_screen_size(700., 700.);
+    request_new_screen_size(800., 800.);
 
 
     println!("{:?}", std::env::current_dir().unwrap());
@@ -19,7 +19,6 @@ async fn main() {
     };
 
     let mut puzzle = puzzle::Puzzle::new(img_path).await;
-    puzzle.init_texture();
 
     loop {
         clear_background(GRAY);
