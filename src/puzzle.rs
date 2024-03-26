@@ -12,6 +12,7 @@ pub struct Puzzle {
     textures: Option<Vec<Texture2D>>,
     draw_image_mode: bool,
     images: Option<Vec<Image>>,
+    image_count: usize,
     image_selection: usize,
 }
 
@@ -21,12 +22,13 @@ impl Puzzle {
         let tiles: [i32; 9] = (0..9).collect::<Vec<i32>>().try_into().unwrap();
         let dimension = Vec2::new(600.0, 600.0);
         let mut images: Vec<Image> = Vec::new(); 
-
+        let mut image_count = 0;
         if let Ok(entries) = fs::read_dir(img_path) {
             for entry in entries {
                 if let Ok(entry) = entry {
                     if entry.path().extension().and_then(OsStr::to_str) == Some("png") {
                         images.push(load_image(entry.path().into_os_string().into_string().expect("invalid filename").as_str()).await.expect("Failure to load image"));
+                        image_count += 1;
                     }
                 }
             }
@@ -40,6 +42,7 @@ impl Puzzle {
             textures: None, 
             draw_image_mode: true, 
             images: Some(images), 
+            image_count,
             image_selection: 0
         }
 
@@ -92,6 +95,16 @@ impl Puzzle {
     }
 
     pub fn update(&mut self) {
+
+        if is_key_pressed(KeyCode::Right) {
+            if let Some(images) = self.images.as_ref() {
+                self.image_selection += 1;
+                if self.image_selection >= self.image_count {
+                    self.image_selection = 0;
+                }
+                self.load_texture();
+            }
+        }
 
         if is_key_pressed(KeyCode::Space) {
             self.draw_image_mode = !self.draw_image_mode;
