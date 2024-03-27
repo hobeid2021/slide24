@@ -21,7 +21,8 @@ pub struct Puzzle {
 impl Puzzle {
 
     pub async fn new(img_path: &str) -> Self {
-        let tiles: [i32; 9] = (0..9).collect::<Vec<i32>>().try_into().unwrap();
+        let mut tiles: [i32; 9] = (0..9).collect::<Vec<i32>>().try_into().unwrap();
+        tiles[8] = -1;
         let dimension = Vec2::new(600.0, 600.0);
         let mut image_names: Vec<String> = Vec::new();
         let mut image_count = 0;
@@ -43,7 +44,7 @@ impl Puzzle {
             tile_size: dimension.x / 3.0, 
             tiles, 
             textures: None, 
-            draw_image_mode: true, 
+            draw_image_mode: false, 
             images, 
             image_count,
             image_selection: 0
@@ -67,25 +68,31 @@ impl Puzzle {
         let font_center = get_text_center(txt.as_str(), Option::None, size, 1.0, 0.0);
         draw_rectangle(x_pos, y_pos, self.tile_size, self.tile_size, GOLD);
         draw_text(txt.as_str(), x_pos + self.tile_size/2. - font_center.x, y_pos + self.tile_size/2. - font_center.y, size as f32, WHITE);
-        draw_rectangle_lines(self.position.x + (tile % 3) as f32 * self.tile_size, self.position.y + (self.tile_size * (tile / 3) as f32), self.tile_size, self.tile_size, 1., BLACK);
+        draw_rectangle_lines(x_pos, y_pos, self.tile_size, self.tile_size, 5., BLACK);
     }
 
+    fn get_tile_position(&self, tile_pos: usize) -> Vec2 {
+        Vec2::new(
+            self.position.x + (tile_pos % 3) as f32 * self.tile_size,
+            self.position.y + (self.tile_size * (tile_pos / 3) as f32)
+        )
+    }   
     pub fn draw(&self) {
         draw_text(self.image_selection.to_string().as_str(), 10.0, 30.0, 30.0, WHITE);
         //draw_texture_ex(&self.texture, self.position.x, self.position.y, WHITE, DrawTextureParams {dest_size: Some(self.dimension), source: None, rotation: 0., flip_x: false, flip_y: false, pivot: None});
         //draw_rectangle_lines(49.5, 49.25, 500.5, 500.5, 5.0, BLACK);
-        for tile in self.tiles {
-            let x_pos = self.position.x + (tile % 3) as f32 * self.tile_size;
-            let y_pos = self.position.y + (self.tile_size * (tile / 3) as f32);
-
+        for (i, tile) in self.tiles.into_iter().enumerate() {
+            let tile_pos = self.get_tile_position(i);
             if self.draw_image_mode == true {
                 if let Some(textures) = self.textures.as_ref() {
-                    draw_texture(&textures[tile as usize], x_pos, y_pos, WHITE);		
+                    if tile != -1 {
+                        draw_texture(&textures[tile as usize], tile_pos.x, tile_pos.y, WHITE);		
+                    }
                 } else {
-                    self.draw_numbered_tile(tile, x_pos, y_pos);
+                    self.draw_numbered_tile(tile, tile_pos.x, tile_pos.y);
                 }
             } else {
-                    self.draw_numbered_tile(tile, x_pos, y_pos);
+                    self.draw_numbered_tile(tile, tile_pos.x, tile_pos.y);
             }
         }
     }
