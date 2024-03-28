@@ -159,20 +159,58 @@ impl Puzzle {
 
         if is_mouse_button_pressed(MouseButton::Left) {
              if let Some(pressed_tile) = self.check_mouse_intersections() {
+                 println!("Pressed in tile");
                  // If tile is already selected swap
                  // TODO: Check if swap between selected and empty is valid
                  if let Some(already_selected) = self.selected_tile {
                      if self.tiles[pressed_tile] == -1 {
-                        self.tiles.swap(pressed_tile, already_selected);
-                        self.selected_tile = None;
+                        /*
+                         *
+                         *   0  1  2  3  4
+                         *   5  6  7  8  9
+                         *  10 11 12 13 14
+                         *  15 16 17 18 19
+                         *  20 21 22 23 24
+                         *
+                         *
+                         */
+
+                        // Validate move
+                        let pressed_tile_offset = pressed_tile + 5 * (1 + pressed_tile / 3);
+                        let already_selected_offset = already_selected + 5 * (1 + pressed_tile / 3);
+                        
+                        // Horizontal
+                        let horizontal_slide = if pressed_tile_offset == already_selected_offset - 1 || pressed_tile_offset == already_selected_offset + 1 {
+                            true
+                        } else {
+                            false
+                        };
+
+                        
+
+                        // Vertical
+                        let vertical_slide = if pressed_tile_offset == already_selected_offset - 3 || pressed_tile_offset == already_selected_offset + 3 {
+                            true
+                        } else {
+                            false
+                        };
+
+                        if horizontal_slide || vertical_slide {
+                            self.tiles.swap(pressed_tile, already_selected);
+                        }
                      }
+
+                    self.selected_tile = None;
+
                  } else {
-                     self.selected_tile = Some(pressed_tile);
+
+                    self.selected_tile = Some(pressed_tile);
+
                  }
              } else {
                  self.selected_tile = None;
              }
-        }
+        } 
        
     }
 }
