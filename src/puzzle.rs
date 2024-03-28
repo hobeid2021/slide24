@@ -61,13 +61,17 @@ impl Puzzle {
         self.textures = Some(sub_images);
     }
 
-    fn draw_numbered_tile(&self, tile: i32, x_pos: f32, y_pos: f32) {
+    fn draw_numbered_tile(&self, tile: i32, x_pos: f32, y_pos: f32, color: Color, disp_number: bool) {
         // Draws numbered tiles as text
-        let size = 100;
-        let txt = tile.to_string();
-        let font_center = get_text_center(txt.as_str(), Option::None, size, 1.0, 0.0);
-        draw_rectangle(x_pos, y_pos, self.tile_size, self.tile_size, GOLD);
-        draw_text(txt.as_str(), x_pos + self.tile_size/2. - font_center.x, y_pos + self.tile_size/2. - font_center.y, size as f32, WHITE);
+        draw_rectangle(x_pos, y_pos, self.tile_size, self.tile_size, color);
+
+        if disp_number {
+            let size = 100;
+            let txt = tile.to_string();
+            let font_center = get_text_center(txt.as_str(), Option::None, size, 1.0, 0.0);
+            draw_text(txt.as_str(), x_pos + self.tile_size/2. - font_center.x, y_pos + self.tile_size/2. - font_center.y, size as f32, WHITE);
+        }
+
         draw_rectangle_lines(x_pos, y_pos, self.tile_size, self.tile_size, 5., BLACK);
     }
 
@@ -77,10 +81,31 @@ impl Puzzle {
             self.position.y + (self.tile_size * (tile_pos / 3) as f32)
         )
     }   
+
+    fn check_mouse_intersections(&self) -> Option<i32> {
+        // Return tile that is currently selected by mouse
+
+        let mouse_pos = mouse_position();
+        for (i, tile) in self.tiles.into_iter().enumerate() {
+            let tile_pos = self.get_tile_position(i);
+            if mouse_pos.0 >= tile_pos.x && mouse_pos.0 <= tile_pos.x + self.tile_size {
+                if mouse_pos.1 >= tile_pos.y && mouse_pos.1 <= tile_pos.y + self.tile_size {
+                    // Draw transparent rect for now
+                    println!("Mouse over tile {i}");
+                    return Some(i as i32);
+                }
+            }
+        }
+        None
+    }
+
     pub fn draw(&self) {
+        let GLASS_BLUE = Color::new(0., 0., 1., 0.5);
         draw_text(self.image_selection.to_string().as_str(), 10.0, 30.0, 30.0, WHITE);
         //draw_texture_ex(&self.texture, self.position.x, self.position.y, WHITE, DrawTextureParams {dest_size: Some(self.dimension), source: None, rotation: 0., flip_x: false, flip_y: false, pivot: None});
         //draw_rectangle_lines(49.5, 49.25, 500.5, 500.5, 5.0, BLACK);
+
+
         for (i, tile) in self.tiles.into_iter().enumerate() {
             let tile_pos = self.get_tile_position(i);
             if self.draw_image_mode == true {
@@ -89,11 +114,18 @@ impl Puzzle {
                         draw_texture(&textures[tile as usize], tile_pos.x, tile_pos.y, WHITE);		
                     }
                 } else {
-                    self.draw_numbered_tile(tile, tile_pos.x, tile_pos.y);
+                    self.draw_numbered_tile(tile, tile_pos.x, tile_pos.y, GOLD, true);
                 }
             } else {
-                    self.draw_numbered_tile(tile, tile_pos.x, tile_pos.y);
+                    self.draw_numbered_tile(tile, tile_pos.x, tile_pos.y, GOLD, true);
             }
+        }
+
+        let selected_tile = self.check_mouse_intersections();
+
+        if let Some(tile) = selected_tile {
+            let pos = self.get_tile_position(tile as usize);
+            self.draw_numbered_tile(tile, pos.x, pos.y, GLASS_BLUE, false);
         }
     }
 
@@ -127,6 +159,8 @@ impl Puzzle {
         if is_key_pressed(KeyCode::Space) {
             self.draw_image_mode = !self.draw_image_mode;
         }
+
+        self.check_mouse_intersections();
     }
 }
 
