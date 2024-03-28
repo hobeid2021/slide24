@@ -10,6 +10,7 @@ pub struct Puzzle {
     dimension: Vec2,	
     tile_size: f32,
     tiles: [i32; 9],
+    selected_tile: Option<usize>,
     // TODO: Implement image textures as parts
     textures: Option<Vec<Texture2D>>,
     draw_image_mode: bool,
@@ -22,7 +23,7 @@ impl Puzzle {
 
     pub async fn new(img_path: &str) -> Self {
         let mut tiles: [i32; 9] = (0..9).collect::<Vec<i32>>().try_into().unwrap();
-        tiles[8] = -1;
+        tiles[8] = -1; // Negative tile represents empty space
         let dimension = Vec2::new(600.0, 600.0);
         let mut image_names: Vec<String> = Vec::new();
         let mut image_count = 0;
@@ -36,6 +37,7 @@ impl Puzzle {
                 }
             }
         }
+        // Load images in alphanumerical order (01, 02, 03) instead of just randomly
         image_names.sort();
         let images: Vec<Image> = join_all(image_names.iter().map(|path| async { load_image(path.as_str()).await.expect("Failure to load image") } )).await;
         Self {
@@ -43,6 +45,7 @@ impl Puzzle {
             dimension, 
             tile_size: dimension.x / 3.0, 
             tiles, 
+            selected_tile: None,
             textures: None, 
             draw_image_mode: false, 
             images, 
@@ -82,17 +85,15 @@ impl Puzzle {
         )
     }   
 
-    fn check_mouse_intersections(&self) -> Option<i32> {
+    fn check_mouse_intersections(&self) -> Option<usize> {
         // Return tile that is currently selected by mouse
-
         let mouse_pos = mouse_position();
         for (i, tile) in self.tiles.into_iter().enumerate() {
             let tile_pos = self.get_tile_position(i);
             if mouse_pos.0 >= tile_pos.x && mouse_pos.0 <= tile_pos.x + self.tile_size {
                 if mouse_pos.1 >= tile_pos.y && mouse_pos.1 <= tile_pos.y + self.tile_size {
                     // Draw transparent rect for now
-                    println!("Mouse over tile {i}");
-                    return Some(i as i32);
+                    return Some(i);
                 }
             }
         }
@@ -102,9 +103,6 @@ impl Puzzle {
     pub fn draw(&self) {
         let GLASS_BLUE = Color::new(0., 0., 1., 0.5);
         draw_text(self.image_selection.to_string().as_str(), 10.0, 30.0, 30.0, WHITE);
-        //draw_texture_ex(&self.texture, self.position.x, self.position.y, WHITE, DrawTextureParams {dest_size: Some(self.dimension), source: None, rotation: 0., flip_x: false, flip_y: false, pivot: None});
-        //draw_rectangle_lines(49.5, 49.25, 500.5, 500.5, 5.0, BLACK);
-
 
         for (i, tile) in self.tiles.into_iter().enumerate() {
             let tile_pos = self.get_tile_position(i);
@@ -121,11 +119,10 @@ impl Puzzle {
             }
         }
 
-        let selected_tile = self.check_mouse_intersections();
-
-        if let Some(tile) = selected_tile {
+        if let Some(tile) = self.check_mouse_intersections() {
+            // Highlight tile under mouse
             let pos = self.get_tile_position(tile as usize);
-            self.draw_numbered_tile(tile, pos.x, pos.y, GLASS_BLUE, false);
+            self.draw_numbered_tile(self.tiles[tile], pos.x, pos.y, GLASS_BLUE, true);
         }
     }
 
@@ -160,7 +157,23 @@ impl Puzzle {
             self.draw_image_mode = !self.draw_image_mode;
         }
 
-        self.check_mouse_intersections();
+        if is_mouse_button_pressed(MouseButton::Left) {
+             if let Some(pressed_tile) = self.check_mouse_intersections() {
+                 // If tile is already selected swap
+                 // TODO: Check if swap between selected and empty is valid
+                 if let Some(already_selected) = self.selected_tile {
+                     if self.tiles[pressed_tile] == -1 {
+                        self.tiles.swap(pressed_tile, already_selected);
+                        self.selected_tile = None;
+                     }
+                 } else {
+                     self.selected_tile = Some(pressed_tile);
+                 }
+             } else {
+                 self.selected_tile = None;
+             }
+        }
+       
     }
 }
 
