@@ -28,20 +28,18 @@ impl Puzzle {
         let mut tiles: [i32; 9] = (0..9).collect::<Vec<i32>>().try_into().unwrap();
         tiles[8] = -1; // Negative tile represents empty space
         let dimension = Vec2::new(600.0, 600.0);
-        let mut image_names: Vec<String> = Vec::new();
-        let mut image_count = 0;
-        if let Ok(entries) = fs::read_dir(img_path) {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    if entry.path().extension().and_then(OsStr::to_str) == Some("png") {
-                        image_names.push(entry.path().into_os_string().into_string().expect("invalid filename"));
-                        image_count += 1;
-                    }
-                }
-            }
-        }
-        // Load images in alphanumerical order (01, 02, 03) instead of just randomly
+        
+        let mut image_names: Vec<_> = fs::read_dir(img_path).expect("Invalid image path")
+            .into_iter()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| entry.path().extension().and_then(OsStr::to_str) == Some("png"))
+            .filter_map(|entry| Some(entry.path().into_os_string().into_string().expect("Invalid filename")))
+            .collect::<Vec<String>>();
+
         image_names.sort();
+        let image_count = image_names.len() as i32;
+
+        // Load images in alphanumerical order (01, 02, 03) instead of just randomly
         let images: Vec<Image> = join_all(image_names.iter().map(|path| async { load_image(path.as_str()).await.expect("Failure to load image") } )).await;
         Self {
             position: Vec2::new(100., 100.), 
@@ -141,7 +139,6 @@ impl Puzzle {
     pub fn update(&mut self) {
         match self.textures {
             None => {
-                println!("Loaded texture!");
                 self.load_texture()
             }
             _ => {},
@@ -152,7 +149,6 @@ impl Puzzle {
             if self.image_selection >= self.image_count {
                 self.image_selection = 0;
             }
-            println!("Changed image!");
             self.load_texture();
         }
 
@@ -161,7 +157,6 @@ impl Puzzle {
             if self.image_selection < 0 {
                 self.image_selection = self.image_count - 1;
             }
-            println!("Changed image!");
             self.load_texture();
         }
 
@@ -171,12 +166,15 @@ impl Puzzle {
 
         if is_mouse_button_pressed(MouseButton::Left) {
              if let Some(pressed_tile) = self.check_mouse_intersections() {
-                 println!("Pressed in tile");
+
                  // If tile is already selected swap
                  // TODO: Check if swap between selected and empty is valid
                  if let Some(already_selected) = self.selected_tile {
                      if self.tiles[pressed_tile] == -1 {
                         /*
+                         *
+                         *   Represent sliding puzzle as part of a larger grid to check move
+                         *   vaildity (from player selected tile to empty tile -1)
                          *
                          *   0  1  2  3  4
                          *   5  6  7  8  9
