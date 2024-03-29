@@ -19,6 +19,9 @@ pub struct Puzzle {
     image_selection: i32,
 }
 
+static GLASS_BLUE: macroquad::color::Color = Color
+    {r: 0., g: 0., b: 1., a: 0.5};
+
 impl Puzzle {
 
     pub async fn new(img_path: &str) -> Self {
@@ -47,7 +50,7 @@ impl Puzzle {
             tiles, 
             selected_tile: None,
             textures: None, 
-            draw_image_mode: false, 
+            draw_image_mode: true, 
             images, 
             image_count,
             image_selection: 0
@@ -64,9 +67,13 @@ impl Puzzle {
         self.textures = Some(sub_images);
     }
 
-    fn draw_numbered_tile(&self, tile: i32, x_pos: f32, y_pos: f32, color: Color, disp_number: bool) {
+    fn draw_tile(&self, tile: i32, x_pos: f32, y_pos: f32, color: Color, fill: bool, disp_number: bool) {
         // Draws numbered tiles as text
-        draw_rectangle(x_pos, y_pos, self.tile_size, self.tile_size, color);
+        if fill { 
+            draw_rectangle(x_pos, y_pos, self.tile_size, self.tile_size, color);
+        } else {
+            draw_rectangle_lines(x_pos, y_pos, self.tile_size, self.tile_size, 5., color);
+        }
 
         if disp_number {
             let size = 100;
@@ -75,7 +82,6 @@ impl Puzzle {
             draw_text(txt.as_str(), x_pos + self.tile_size/2. - font_center.x, y_pos + self.tile_size/2. - font_center.y, size as f32, WHITE);
         }
 
-        draw_rectangle_lines(x_pos, y_pos, self.tile_size, self.tile_size, 5., BLACK);
     }
 
     fn get_tile_position(&self, tile_pos: usize) -> Vec2 {
@@ -101,7 +107,6 @@ impl Puzzle {
     }
 
     pub fn draw(&self) {
-        let GLASS_BLUE = Color::new(0., 0., 1., 0.5);
         draw_text(self.image_selection.to_string().as_str(), 10.0, 30.0, 30.0, WHITE);
 
         for (i, tile) in self.tiles.into_iter().enumerate() {
@@ -112,18 +117,25 @@ impl Puzzle {
                         draw_texture(&textures[tile as usize], tile_pos.x, tile_pos.y, WHITE);		
                     }
                 } else {
-                    self.draw_numbered_tile(tile, tile_pos.x, tile_pos.y, GOLD, true);
+                    self.draw_tile(tile, tile_pos.x, tile_pos.y, GOLD, true, true);
                 }
             } else {
-                    self.draw_numbered_tile(tile, tile_pos.x, tile_pos.y, GOLD, true);
+                    self.draw_tile(tile, tile_pos.x, tile_pos.y, GOLD, true, true);
             }
         }
 
         if let Some(tile) = self.check_mouse_intersections() {
             // Highlight tile under mouse
             let pos = self.get_tile_position(tile as usize);
-            self.draw_numbered_tile(self.tiles[tile], pos.x, pos.y, GLASS_BLUE, true);
+            self.draw_tile(self.tiles[tile], pos.x, pos.y, GLASS_BLUE, false, false);
         }
+
+        if let Some(tile) = self.selected_tile {
+            let pos = self.get_tile_position(tile as usize);
+            self.draw_tile(self.tiles[tile], pos.x, pos.y, GREEN, false, false);
+
+        }
+
     }
 
     pub fn update(&mut self) {
@@ -200,7 +212,7 @@ impl Puzzle {
                         }
                      }
 
-                    self.selected_tile = None;
+                     self.selected_tile = None;
 
                  } else {
 
