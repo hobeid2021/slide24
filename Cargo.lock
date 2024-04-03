@@ -229,6 +229,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "iterator-sorted"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed3c1d66191fc266439b989dc1a9a69d9c4156e803ce456221231398b84c35d1"
+
+[[package]]
 name = "libc"
 version = "0.2.153"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -428,6 +434,7 @@ name = "slide24"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "iterator-sorted",
  "macroquad",
  "rand",
 ]

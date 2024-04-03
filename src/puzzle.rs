@@ -2,10 +2,19 @@ use std::ffi::OsStr;
 use std::fs;
 use macroquad::prelude::*;
 use futures::future::join_all;
+use iterator_sorted::is_sorted;
 
 extern crate rand;
 use rand::{thread_rng, Rng};
 use rand::seq::SliceRandom;
+
+
+#[derive(Debug, PartialEq)]
+enum GameState {
+    Start,
+    Playing,
+    Win,
+}
 
 #[derive(Debug)]
 pub struct Puzzle {
@@ -21,6 +30,7 @@ pub struct Puzzle {
     images: Vec<Image>,
     image_count: i32,
     image_selection: i32,
+    state: GameState,
 }
 
 static GLASS_BLUE: macroquad::color::Color = Color
@@ -57,7 +67,8 @@ impl Puzzle {
             draw_image_mode: true, 
             images, 
             image_count,
-            image_selection: 0
+            image_selection: 0,
+            state: GameState::Start
         }
 
     }
@@ -87,7 +98,17 @@ impl Puzzle {
     pub fn load_texture(&mut self) {
         let puzzle_image = &self.images[self.image_selection as usize]; 
         // Take slices of texture image
-        let sub_images = self.tiles.into_iter().map(|n| Texture2D::from_image(&puzzle_image.sub_image(Rect {x: (n % 3) as f32 * self.tile_size, y: self.tile_size * (n / 3) as f32, w: self.tile_size, h: self.tile_size} )))
+
+
+        // Ensures that subimages are taken in order from the source image
+        let sub_images = (0..self.tiles.len())
+            .map(|n| Texture2D::from_image(
+                &puzzle_image.sub_image(Rect {
+                        x: (n % 3) as f32 * self.tile_size, 
+                        y: self.tile_size * (n / 3) as f32, 
+                        w: self.tile_size, 
+                        h: self.tile_size
+            })))
             .collect::<Vec<Texture2D>>();
         self.textures = Some(sub_images);
     }
@@ -182,6 +203,7 @@ impl Puzzle {
         }
 
         if is_key_pressed(KeyCode::S) {
+            self.state = GameState::Playing;
             self.shuffle();
         }
 
@@ -262,7 +284,14 @@ impl Puzzle {
                  self.selected_tile = None;
              }
         } 
-       
+
+
+        // CHECK IF GAME IS WON
+        if is_sorted(self.tiles.iter()) && self.state == GameState::Playing {
+            println!("YOU WIN!!!");
+            self.state = GameState::Win;
+        }
+
     }
 
     fn count_inversions(&self, array: &Vec<i32>) -> i32 {

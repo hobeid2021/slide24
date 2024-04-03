@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 futures = "0.3.30"
+iterator-sorted = "0.2.0"
 macroquad = "0.4.5"
 rand = "0.8.5"
