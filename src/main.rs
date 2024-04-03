@@ -1,3 +1,5 @@
+// By: Hadi Obeid 
+// Email: hobeid1212@gmail.com
 use std::fs;
 use std::ffi::OsStr;
 use macroquad::prelude::*;
@@ -5,7 +7,7 @@ use macroquad::prelude::*;
 pub mod puzzle;
 
 
-#[macroquad::main("BasicShapes")]
+#[macroquad::main("Sliding Puzzle")]
 async fn main() {
     request_new_screen_size(800., 800.);
 

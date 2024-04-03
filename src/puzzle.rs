@@ -3,6 +3,9 @@ use std::fs;
 use macroquad::prelude::*;
 use futures::future::join_all;
 
+extern crate rand;
+use rand::{thread_rng, Rng};
+use rand::seq::SliceRandom;
 
 #[derive(Debug)]
 pub struct Puzzle {
@@ -10,6 +13,7 @@ pub struct Puzzle {
     dimension: Vec2,	
     tile_size: f32,
     tiles: [i32; 9],
+    empty_tile: i32,
     selected_tile: Option<usize>,
     // TODO: Implement image textures as parts
     textures: Option<Vec<Texture2D>>,
@@ -26,7 +30,7 @@ impl Puzzle {
 
     pub async fn new(img_path: &str) -> Self {
         let mut tiles: [i32; 9] = (0..9).collect::<Vec<i32>>().try_into().unwrap();
-        tiles[8] = -1; // Negative tile represents empty space
+        tiles[8] = 8; // Negative tile represents empty space
         let dimension = Vec2::new(600.0, 600.0);
         
         let mut image_names: Vec<_> = fs::read_dir(img_path).expect("Invalid image path")
@@ -41,11 +45,13 @@ impl Puzzle {
 
         // Load images in alphanumerical order (01, 02, 03) instead of just randomly
         let images: Vec<Image> = join_all(image_names.iter().map(|path| async { load_image(path.as_str()).await.expect("Failure to load image") } )).await;
+        
         Self {
             position: Vec2::new(100., 100.), 
             dimension, 
             tile_size: dimension.x / 3.0, 
             tiles, 
+            empty_tile: tiles[8],
             selected_tile: None,
             textures: None, 
             draw_image_mode: true, 
@@ -54,6 +60,27 @@ impl Puzzle {
             image_selection: 0
         }
 
+    }
+
+    fn shuffle(&mut self) {
+        // Shuffle puzzle randomly until solvable combination is found
+        /*
+         * Odd number of columns -> No_ inversions is EVEN
+         * Even number of columns & even number of rows -> No_ inversions + Row of blank is EVEN
+         * Even number of columns & odd number of rows -> No_ inversions + Row of blank is ODD
+         */
+
+        let mut rng = thread_rng();
+
+        self.tiles.as_mut_slice().shuffle(&mut rng);
+        loop { 
+            if self.count_inversions(&self.tiles.to_vec()) % 2 == 0 {
+                break;
+            } else {
+                self.tiles.as_mut_slice().shuffle(&mut rng);
+            }
+        }
+        
     }
 
 
@@ -69,6 +96,7 @@ impl Puzzle {
         // Draws numbered tiles as text
         if fill { 
             draw_rectangle(x_pos, y_pos, self.tile_size, self.tile_size, color);
+            draw_rectangle_lines(x_pos, y_pos, self.tile_size, self.tile_size, 5., BLACK);
         } else {
             draw_rectangle_lines(x_pos, y_pos, self.tile_size, self.tile_size, 5., color);
         }
@@ -92,7 +120,7 @@ impl Puzzle {
     fn check_mouse_intersections(&self) -> Option<usize> {
         // Return tile that is currently selected by mouse
         let mouse_pos = mouse_position();
-        for (i, tile) in self.tiles.into_iter().enumerate() {
+        for (i, _tile) in self.tiles.into_iter().enumerate() {
             let tile_pos = self.get_tile_position(i);
             if mouse_pos.0 >= tile_pos.x && mouse_pos.0 <= tile_pos.x + self.tile_size {
                 if mouse_pos.1 >= tile_pos.y && mouse_pos.1 <= tile_pos.y + self.tile_size {
@@ -111,14 +139,22 @@ impl Puzzle {
             let tile_pos = self.get_tile_position(i);
             if self.draw_image_mode == true {
                 if let Some(textures) = self.textures.as_ref() {
-                    if tile != -1 {
+                    if tile != self.empty_tile {
                         draw_texture(&textures[tile as usize], tile_pos.x, tile_pos.y, WHITE);		
                     }
                 } else {
-                    self.draw_tile(tile, tile_pos.x, tile_pos.y, GOLD, true, true);
+                    if tile != self.empty_tile {
+                        self.draw_tile(tile, tile_pos.x, tile_pos.y, GOLD, true, true);
+                    } else {
+                        self.draw_tile(tile, tile_pos.x, tile_pos.y, BLUE, true, true);
+                    }
                 }
             } else {
-                    self.draw_tile(tile, tile_pos.x, tile_pos.y, GOLD, true, true);
+                    if tile != self.empty_tile {
+                        self.draw_tile(tile+1, tile_pos.x, tile_pos.y, GOLD, true, true);
+                    } else {
+                        self.draw_tile(0, tile_pos.x, tile_pos.y, BLUE, true, true);
+                    }
             }
         }
 
@@ -137,11 +173,16 @@ impl Puzzle {
     }
 
     pub fn update(&mut self) {
+        // Arrow keys to change image, S to shuffle, Space to toggle image display
         match self.textures {
             None => {
                 self.load_texture()
             }
             _ => {},
+        }
+
+        if is_key_pressed(KeyCode::S) {
+            self.shuffle();
         }
 
         if is_key_pressed(KeyCode::Right) {
@@ -170,7 +211,7 @@ impl Puzzle {
                  // If tile is already selected swap
                  // TODO: Check if swap between selected and empty is valid
                  if let Some(already_selected) = self.selected_tile {
-                     if self.tiles[pressed_tile] == -1 {
+                     if self.tiles[pressed_tile] == self.empty_tile {
                         /*
                          *
                          *   Represent sliding puzzle as part of a larger grid to check move
@@ -223,5 +264,73 @@ impl Puzzle {
         } 
        
     }
+
+    fn count_inversions(&self, array: &Vec<i32>) -> i32 {
+        // Wrapper for count_inversions_internal found outside of the code
+        // A solution using merge sort is more efficient but it this just works
+        // Ignores empty tile's position
+        count_inversions_internal(array, self.empty_tile)
+    }
 }
 
+fn count_inversions_internal(array: &Vec<i32>, empty_tile: i32) -> i32 {
+    // Implementation of count_inversions
+    // A solution using merge sort is more efficient but it this just works
+    // Ignores empty tile's position
+    let array = array.iter().copied().filter(|x| *x != empty_tile).collect::<Vec<i32>>();
+    let n = array.len();
+    let mut inversions_count = 0;
+    for (i, elem) in array.iter().enumerate() {
+        let k = i+1;
+        for j in k..n {
+            if *elem > array[j] {
+                inversions_count += 1;
+            }
+        }
+    }
+    inversions_count
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::puzzle::count_inversions_internal as count_inversions;
+    static EMPTY_TILE_TEST: i32 = 8;
+    #[test]
+    fn test_inv_count_sorted() {
+        let array_test = vec![1, 2, 3, 4, 5];
+        assert_eq!(count_inversions(&array_test, EMPTY_TILE_TEST), 0);
+
+    }
+
+    #[test]
+    fn test_inv_merge_and_count_unsorted() {
+        let mut array_test = vec![3, 2, 1];
+        let unsorted = array_test.clone();
+        array_test.sort();
+        assert_eq!(count_inversions(&unsorted, EMPTY_TILE_TEST), 3);
+    }
+
+    #[test]
+    fn test_inv_merge_and_count_tiles() {
+        let mut array_test = vec![2, 5, 1, 3, 4];
+        let unsorted = array_test.clone();
+        array_test.sort();
+        assert_eq!(count_inversions(&unsorted, EMPTY_TILE_TEST), 4);
+
+        let mut array_test = vec![7, 5, 9, 3, 4];
+        let unsorted = array_test.clone();
+        array_test.sort();
+        assert_eq!(count_inversions(&unsorted, EMPTY_TILE_TEST), 7);
+
+    }
+
+    #[test]
+    fn more_testing() {
+        let mut array_test = vec![5, 4, 3, 2, 1];
+        let unsorted = array_test.clone();
+        array_test.sort();
+        assert_eq!(count_inversions(&unsorted, EMPTY_TILE_TEST), 10);
+    }
+
+}
