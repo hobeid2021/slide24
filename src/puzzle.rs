@@ -4,10 +4,7 @@ use macroquad::prelude::*;
 use futures::future::join_all;
 use iterator_sorted::is_sorted;
 
-extern crate rand;
 
-use rand::{thread_rng, Rng};
-use rand::seq::SliceRandom;
 use crate::animation::TileAnimation;
 
 
@@ -78,6 +75,15 @@ impl Puzzle {
 
     }
 
+    fn shuffle_tiles(&mut self) {
+        // Fisher Yates implementation from https:://en.wikipedia.org/wiki/Fisher-Yates_shuffle
+        let n = self.tiles.len() - 1;
+        for i in (1..=n).rev() {
+            let j = (rand::rand() % i as u32) as usize;
+            self.tiles.swap(i, j); 
+        }
+    }
+
     fn shuffle(&mut self) {
         // Shuffle puzzle randomly until solvable combination is found
         /*
@@ -86,16 +92,15 @@ impl Puzzle {
          * Even number of columns & odd number of rows -> No_ inversions + Row of blank is ODD
          */
 
-        let mut rng = thread_rng();
-
-        self.tiles.as_mut_slice().shuffle(&mut rng);
+        self.shuffle_tiles();
         loop { 
             if self.count_inversions(&self.tiles.to_vec()) % 2 == 0 {
                 break;
             } else {
-                self.tiles.as_mut_slice().shuffle(&mut rng);
+                self.shuffle_tiles();
             }
         }
+    
         
     }
 

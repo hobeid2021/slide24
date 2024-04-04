@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 futures = "0.3.30"
-getrandom = {version = "0.2.12", features = ["js"]}
 iterator-sorted = "0.2.0"
 macroquad = "0.4.5"
-rand = "0.8.5"
+miniquad = "0.4.0"
+sapp-wasm = "0.1.26"

@@ -2,6 +2,7 @@
 // Email: hobeid1212@gmail.com
 use std::fs;
 use std::ffi::OsStr;
+use std::time::{SystemTime, UNIX_EPOCH};
 use macroquad::prelude::*;
 
 pub mod animation;
@@ -12,6 +13,13 @@ use crate::puzzle::Puzzle;
 #[macroquad::main("Sliding Puzzle")]
 async fn main() {
     request_new_screen_size(800., 800.);
+    let start = SystemTime::now();
+    let since_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    rand::srand(since_epoch);
 
 
     println!("{:?}", std::env::current_dir().unwrap());
