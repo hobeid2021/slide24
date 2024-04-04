@@ -4,8 +4,10 @@ use std::fs;
 use std::ffi::OsStr;
 use macroquad::prelude::*;
 
+pub mod animation;
 pub mod puzzle;
 
+use crate::puzzle::Puzzle;
 
 #[macroquad::main("Sliding Puzzle")]
 async fn main() {
@@ -20,7 +22,7 @@ async fn main() {
         r"./img/"
     };
 
-    let mut puzzle = puzzle::Puzzle::new(img_path).await;
+    let mut puzzle = Puzzle::new(img_path).await;
 
     loop {
         clear_background(GRAY);
