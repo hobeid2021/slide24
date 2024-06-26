@@ -5,8 +5,6 @@ use futures::future::join_all;
 use iterator_sorted::is_sorted;
 
 
-use crate::animation::TileAnimation;
-
 
 #[derive(Debug, PartialEq)]
 enum GameState {
@@ -23,7 +21,6 @@ pub struct Puzzle {
     tiles: [i32; 9],
     empty_tile: i32,
     selected_tile: Option<usize>,
-    animation: Option<TileAnimation>,
     // TODO: Implement image textures as parts
     textures: Option<Vec<Texture2D>>,
     draw_image_mode: bool,
@@ -64,7 +61,6 @@ impl Puzzle {
             empty_tile: tiles[8],
             selected_tile: None, // Selected tile
             // Move animation information, must contain the necessary info to represent the tile sliding animation
-            animation: None, 
             textures: None, // Textures used for image parts
             draw_image_mode: true, 
             images, 

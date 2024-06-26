@@ -5,7 +5,6 @@ use std::ffi::OsStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 use macroquad::prelude::*;
 
-pub mod animation;
 pub mod puzzle;
 
 use crate::puzzle::Puzzle;
