@@ -2,7 +2,7 @@ use std::ffi::OsStr;
 use std::fs;
 use std::cmp;
 use macroquad::prelude::*;
-use miniquad::RenderPass;
+
 use futures::future::join_all;
 use iterator_sorted::is_sorted;
 
@@ -55,10 +55,10 @@ impl Puzzle {
         // Load images in alphanumerical order (01, 02, 03) instead of just randomly
 
         let images: Vec<Image> = join_all(image_names.iter().map(|path| async { 
-            let mut img = load_image(path.as_str()).await.expect("Failure to load image");
-            let img_data = img.get_image_data();
+            let img = load_image(path.as_str()).await.expect("Failure to load image");
+            let _img_data = img.get_image_data();
             let mut out_img = Image::gen_image_color(600, 600, WHITE);
-            let mut out_img_data = out_img.get_image_data_mut();
+            let _out_img_data = out_img.get_image_data_mut();
             // Bilinear filter if image is not 600x600
             if img.width() != 600 && img.height() != 600 {
                 let org_w = img.width() as i32;
@@ -74,8 +74,8 @@ impl Puzzle {
                 };
                 for y in 0..600 {
                     for x in 0..600 {
-                        let org_x = (x as f64 * scale_x);
-                        let org_y = (y as f64 * scale_y);
+                        let org_x = x as f64 * scale_x;
+                        let org_y = y as f64 * scale_y;
 
                         let x1 = org_x as u32;
                         let y1 = org_y as u32;
