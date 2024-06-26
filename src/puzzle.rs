@@ -1,6 +1,8 @@
 use std::ffi::OsStr;
 use std::fs;
+use std::cmp;
 use macroquad::prelude::*;
+use miniquad::RenderPass;
 use futures::future::join_all;
 use iterator_sorted::is_sorted;
 
@@ -51,7 +53,59 @@ impl Puzzle {
         let image_count = image_names.len() as i32;
 
         // Load images in alphanumerical order (01, 02, 03) instead of just randomly
-        let images: Vec<Image> = join_all(image_names.iter().map(|path| async { load_image(path.as_str()).await.expect("Failure to load image") } )).await;
+
+        let images: Vec<Image> = join_all(image_names.iter().map(|path| async { 
+            let mut img = load_image(path.as_str()).await.expect("Failure to load image");
+            let img_data = img.get_image_data();
+            let mut out_img = Image::gen_image_color(600, 600, WHITE);
+            let mut out_img_data = out_img.get_image_data_mut();
+            // Bilinear filter if image is not 600x600
+            if img.width() != 600 && img.height() != 600 {
+                let org_w = img.width() as i32;
+                let org_h = img.height() as i32;
+                let scale_x: f64 = org_w as f64 / 600.;
+                let scale_y: f64 = org_h as f64 / 600.;
+                
+                let bifilter = |alpha: f64, beta: f64, p1: f64, p2: f64, p3: f64, p4: f64| {
+                    ((1. - alpha) * (1. - beta) * p1
+                    + alpha * (1. - beta) * p2
+                    + (1. - alpha) * beta * p3
+                    + alpha * beta * p4) as f32
+                };
+                for y in 0..600 {
+                    for x in 0..600 {
+                        let org_x = (x as f64 * scale_x);
+                        let org_y = (y as f64 * scale_y);
+
+                        let x1 = org_x as u32;
+                        let y1 = org_y as u32;
+                        let x2 = cmp::min((x1 + 1) as u32, (org_w - 1) as u32);            
+                        let y2 = cmp::min((y1 + 1) as u32, (org_h - 1) as u32);            
+                        
+                        let alpha = org_x - x1 as f64;
+                        let beta = org_y - y1 as f64;
+
+                        let col_x1 = img.get_pixel(x1, y1);
+                        let col_x2 = img.get_pixel(x2, y1);
+                        let col_y1 = img.get_pixel(x1, y2);
+                        let col_y2 = img.get_pixel(x2, y2);
+
+                        let col_filtered = Color {
+                            r: bifilter(alpha, beta, col_x1.r as f64, col_x2.r as f64, col_y1.r as f64, col_y2.r as f64),
+                            g: bifilter(alpha, beta, col_x1.g as f64, col_x2.g as f64, col_y1.g as f64, col_y2.g as f64),
+                            b: bifilter(alpha, beta, col_x1.b as f64, col_x2.b as f64, col_y1.b as f64, col_y2.b as f64),
+                            a: bifilter(alpha, beta, col_x1.a as f64, col_x2.a as f64, col_y1.a as f64, col_y2.a as f64),
+                        };
+
+                        out_img.set_pixel(x, y, col_filtered);
+                    }
+                }
+                return out_img;
+            }
+            img
+            
+
+        } )).await;
         
         Self {
             position: Vec2::new(100., 100.), 
@@ -105,6 +159,10 @@ impl Puzzle {
         let puzzle_image = &self.images[self.image_selection as usize]; 
         // Take slices of texture image
 
+        /*
+        puzzle_texture.grab_screen();
+        puzzle_image = puzzle_image.sub_image(Rect { x: 0., y: 0., w: 600., h: 600. });
+        */
 
         // Ensures that subimages are taken in order from the source image
         let sub_images = (0..self.tiles.len())
